@@ -1,0 +1,27 @@
+# ─── LangChain ───────────────────────────────────────────────────────────────
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langchain-openai>=0.1.6        # Optional: for OpenAI cloud inference
+
+# ─── Vector Store ─────────────────────────────────────────────────────────────
+chromadb>=0.5.0
+
+# ─── Embeddings (local, no API key required) ──────────────────────────────────
+sentence-transformers>=3.0.0
+
+# ─── LLM (local inference via Ollama) ─────────────────────────────────────────
+ollama>=0.2.0                  # Optional: required only for --provider ollama
+openai>=1.23.0                 # Optional: required only for --provider openai
+
+# ─── CLI & output ─────────────────────────────────────────────────────────────
+click>=8.1.7
+rich>=13.7.1
+
+# ─── Config ───────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.1
+pydantic>=2.6.0
+
+# ─── Dev / testing ────────────────────────────────────────────────────────────
+pytest>=8.1.1
+pytest-cov>=5.0.0
+ruff>=0.4.0

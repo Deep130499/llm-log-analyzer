@@ -1,0 +1,19 @@
+2024-03-15T09:12:01.421Z Run actions/checkout@v4
+2024-03-15T09:12:02.883Z   Initialized empty Git repository
+2024-03-15T09:12:03.112Z   Checking out the ref
+
+2024-03-15T09:12:05.004Z Run actions/setup-python@v5
+2024-03-15T09:12:06.732Z   Successfully set up CPython 3.11.8
+
+2024-03-15T09:12:07.001Z Run pip install -r requirements.txt
+2024-03-15T09:12:18.556Z   Collecting Flask==3.0.2
+2024-03-15T09:12:19.003Z   Collecting flask-sqlalchemy==2.5.1
+##[error]ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+##[error]flask-sqlalchemy 2.5.1 requires Flask<3.0,>=0.8, but you have Flask 3.0.2 which is incompatible.
+2024-03-15T09:12:21.445Z   Process completed with exit code 1
+
+2024-03-15T09:12:21.553Z ##[error]The process '/usr/bin/pip' failed with exit code 1
+2024-03-15T09:12:21.554Z ##[warning]Dependency installation failed — subsequent steps may not run correctly
+2024-03-15T09:12:21.600Z Run python -m pytest tests/ -v
+2024-03-15T09:12:21.601Z ##[error]ModuleNotFoundError: No module named 'flask'
+2024-03-15T09:12:21.602Z ##[error]Process completed with exit code 1

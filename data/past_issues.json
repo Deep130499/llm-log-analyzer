@@ -1,0 +1,152 @@
+[
+  {
+    "id": "issue-001",
+    "title": "ImportError: No module named 'requests'",
+    "description": "pytest failed with ImportError: No module named 'requests' in test_api.py at line 3. CI pipeline broke after a fresh environment was spun up.",
+    "error_type": "ImportError",
+    "log_type": "pytest",
+    "resolution": "Added 'requests>=2.31.0' to requirements.txt and re-ran pip install -r requirements.txt in the workflow.",
+    "tags": ["import-error", "missing-dependency", "requirements", "pytest"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-002",
+    "title": "AssertionError in test_user_creation — expected 201 got 500",
+    "description": "test_auth.py::test_user_creation failed with AssertionError: assert 500 == 201. The database was not seeded before the test ran, causing a foreign key constraint violation.",
+    "error_type": "AssertionError",
+    "log_type": "pytest",
+    "resolution": "Added a pytest fixture to create required database tables before each test class using conftest.py and @pytest.fixture(autouse=True).",
+    "tags": ["assert-error", "database", "fixture", "conftest"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-003",
+    "title": "ConnectionRefusedError: PostgreSQL not available in CI",
+    "description": "Multiple tests failed with ConnectionRefusedError: [Errno 111] Connection refused when attempting to connect to localhost:5432. PostgreSQL service was not started in the GitHub Actions workflow.",
+    "error_type": "ConnectionRefusedError",
+    "log_type": "pytest",
+    "resolution": "Added a 'services: postgres:' block to the GitHub Actions workflow YAML and waited for it to become healthy using a healthcheck step.",
+    "tags": ["connection-error", "postgresql", "services", "github-actions"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-004",
+    "title": "Jest: Cannot find module '@/components/Button'",
+    "description": "Jest test suite failed with Cannot find module '@/components/Button' from 'src/pages/Home.test.js'. Path alias was not configured in jest.config.js.",
+    "error_type": "ModuleNotFoundError",
+    "log_type": "jest",
+    "resolution": "Added moduleNameMapper to jest.config.js to resolve the '@/' alias: { '^@/(.*)$': '<rootDir>/src/$1' }",
+    "tags": ["module-not-found", "jest", "path-alias", "javascript"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-005",
+    "title": "Python TypeError: argument of type 'NoneType' is not iterable",
+    "description": "test_search.py::test_keyword_search raised TypeError: argument of type 'NoneType' is not iterable. The function returned None when the database was empty instead of returning an empty list.",
+    "error_type": "TypeError",
+    "log_type": "pytest",
+    "resolution": "Fixed the function to return [] instead of None when no results are found. Added a None guard and updated the test to cover the empty-state case.",
+    "tags": ["type-error", "none-check", "return-value", "pytest"],
+    "severity": "low"
+  },
+  {
+    "id": "issue-006",
+    "title": "GitHub Actions: Process completed with exit code 1 — pip install failed",
+    "description": "CI workflow step 'Install dependencies' failed with exit code 1. pip could not resolve conflicting package versions between Flask 3.0 and an older extension requiring Flask 2.x.",
+    "error_type": "DependencyConflict",
+    "log_type": "github_actions",
+    "resolution": "Pinned Flask to 2.3.3 and upgraded the extension to a version compatible with Flask 3. Used pip-compile to generate a reproducible lock file.",
+    "tags": ["pip", "dependency-conflict", "flask", "exit-code-1"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-007",
+    "title": "SyntaxError: invalid syntax in config.py",
+    "description": "pytest collection failed with SyntaxError: invalid syntax at config.py:14. A walrus operator (:=) was used in Python 3.7 which does not support it.",
+    "error_type": "SyntaxError",
+    "log_type": "pytest",
+    "resolution": "Changed the Python version in the GitHub Actions workflow from 3.7 to 3.8+, or rewrote the expression without the walrus operator for backwards compatibility.",
+    "tags": ["syntax-error", "python-version", "walrus-operator"],
+    "severity": "critical"
+  },
+  {
+    "id": "issue-008",
+    "title": "Jest timeout — async test exceeded 5000ms",
+    "description": "FAIL src/api/users.test.js — Test exceeded timeout of 5000ms. An API call inside the test hit a real endpoint instead of the mocked one because jest.mock() was called after the import.",
+    "error_type": "TimeoutError",
+    "log_type": "jest",
+    "resolution": "Moved jest.mock() calls to the top of the test file, before any imports that use the module. Verified the mock intercepted the fetch call by checking jest.fn() call counts.",
+    "tags": ["timeout", "jest", "async", "mock"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-009",
+    "title": "KeyError: 'DATABASE_URL' — missing environment variable",
+    "description": "test_db.py::test_connection raised KeyError: 'DATABASE_URL'. The environment variable was defined in .env but not exported to the GitHub Actions runner environment.",
+    "error_type": "KeyError",
+    "log_type": "pytest",
+    "resolution": "Added DATABASE_URL as a repository secret in GitHub (Settings > Secrets) and referenced it in the workflow with ${{ secrets.DATABASE_URL }}.",
+    "tags": ["key-error", "env-variable", "secrets", "github-actions"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-010",
+    "title": "npm ERR! peer dependency conflict — React 18 vs React 17",
+    "description": "npm install failed with ERESOLVE unable to resolve dependency tree. A UI component library required React 17 while the project had upgraded to React 18.",
+    "error_type": "DependencyConflict",
+    "log_type": "jest",
+    "resolution": "Upgraded the component library to a version that supports React 18, or used --legacy-peer-deps as a temporary workaround while tracking the upstream issue.",
+    "tags": ["npm", "peer-dependency", "react", "dependency-conflict"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-011",
+    "title": "AttributeError: 'NoneType' object has no attribute 'json'",
+    "description": "test_client.py::test_post_endpoint raised AttributeError: 'NoneType' object has no attribute 'json'. The requests.post() call returned None because the test used a real HTTP client without starting the test server.",
+    "error_type": "AttributeError",
+    "log_type": "pytest",
+    "resolution": "Switched to Flask's built-in test client: client = app.test_client(). No running server needed; the test client handles requests in-process.",
+    "tags": ["attribute-error", "none-type", "test-client", "flask"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-012",
+    "title": "PermissionError: [Errno 13] Permission denied — writing to /etc",
+    "description": "CI pipeline step failed with PermissionError: [Errno 13] Permission denied: '/etc/app/config.json'. The application tried to write its config to a system directory at startup.",
+    "error_type": "PermissionError",
+    "log_type": "github_actions",
+    "resolution": "Changed the config file path to use the user's home directory (~/.config/app/) or a temporary directory (/tmp/). Added XDG_CONFIG_HOME environment variable support.",
+    "tags": ["permission-error", "file-system", "config", "ci"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-013",
+    "title": "Docker build failed — COPY file not found",
+    "description": "GitHub Actions 'Build Docker image' step failed: COPY failed: file not found in build context: requirements.txt. The Docker build context was set to a subdirectory that didn't contain requirements.txt.",
+    "error_type": "DockerBuildError",
+    "log_type": "github_actions",
+    "resolution": "Changed the docker build command to run from the repository root: docker build -f docker/Dockerfile . instead of docker build docker/. The build context needs to include all COPY source paths.",
+    "tags": ["docker", "build-error", "copy", "context"],
+    "severity": "high"
+  },
+  {
+    "id": "issue-014",
+    "title": "RecursionError: maximum recursion depth exceeded",
+    "description": "test_serializer.py::test_circular_reference raised RecursionError: maximum recursion depth exceeded. A circular model relationship caused the JSON serializer to recurse infinitely.",
+    "error_type": "RecursionError",
+    "log_type": "pytest",
+    "resolution": "Added a seen_ids set to the serializer to track already-visited objects and break the cycle. Alternatively, used SerializerMethodField to manually control nested depth.",
+    "tags": ["recursion-error", "serializer", "circular-reference", "json"],
+    "severity": "medium"
+  },
+  {
+    "id": "issue-015",
+    "title": "GitHub Actions: actions/checkout failed — token expired",
+    "description": "Workflow failed at actions/checkout@v3 with error: remote: Repository not found or token expired. The repository's GITHUB_TOKEN did not have sufficient permissions for a private dependency.",
+    "error_type": "AuthenticationError",
+    "log_type": "github_actions",
+    "resolution": "Generated a Personal Access Token (PAT) with repo scope, stored it as a secret (GH_PAT), and configured git to use it: git config url.'https://TOKEN@github.com/'.insteadOf 'https://github.com/'",
+    "tags": ["auth-error", "github-token", "checkout", "private-repo"],
+    "severity": "critical"
+  }
+]

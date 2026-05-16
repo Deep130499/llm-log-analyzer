@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  # ── Main analyzer ──────────────────────────────────────────────────────────
+  analyzer:
+    build: .
+    image: llm-log-analyzer:latest
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-demo}
+      LLM_MODEL:    ${LLM_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CHROMA_DB_PATH: /data/chroma_db
+      # If using Ollama container below, point to it:
+      # OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ./logs:/logs:ro            # mount your CI logs here
+      - chroma_data:/data/chroma_db
+    command: --log-file /logs/sample_pytest_failure.log --format rich
+
+  # ── Ingest seed data ───────────────────────────────────────────────────────
+  ingest:
+    build: .
+    image: llm-log-analyzer:latest
+    environment:
+      CHROMA_DB_PATH: /data/chroma_db
+    volumes:
+      - ./data:/app/data:ro
+      - chroma_data:/data/chroma_db
+    entrypoint: ["python", "scripts/ingest_issues.py"]
+    command: --db-path /data/chroma_db
+
+  # ── Local Ollama (optional) ────────────────────────────────────────────────
+  # Pull a model after starting:  docker compose exec ollama ollama pull llama3.2
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    profiles:
+      - local-llm              # only start with: docker compose --profile local-llm up
+
+volumes:
+  chroma_data:
+  ollama_models:

@@ -1,0 +1,94 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.4, pytest-7.4.3, pluggy-1.3.0
+rootdir: /home/runner/work/myapp/myapp
+configfile: pytest.ini
+collected 18 items
+
+tests/test_api.py::test_health_check PASSED                              [  5%]
+tests/test_api.py::test_get_users PASSED                                 [ 11%]
+tests/test_api.py::test_create_user FAILED                               [ 16%]
+tests/test_auth.py::test_login_success PASSED                            [ 22%]
+tests/test_auth.py::test_login_wrong_password PASSED                     [ 27%]
+tests/test_auth.py::test_refresh_token FAILED                            [ 33%]
+tests/test_auth.py::test_logout PASSED                                   [ 38%]
+tests/test_database.py::test_connection FAILED                           [ 44%]
+tests/test_database.py::test_query_users PASSED                          [ 50%]
+tests/test_database.py::test_insert_record PASSED                        [ 55%]
+tests/test_utils.py::test_format_date PASSED                             [ 61%]
+tests/test_utils.py::test_validate_email PASSED                          [ 66%]
+tests/test_utils.py::test_hash_password PASSED                           [ 72%]
+tests/test_workers.py::test_send_email_task PASSED                       [ 77%]
+tests/test_workers.py::test_process_upload PASSED                        [ 83%]
+tests/test_workers.py::test_cleanup_expired_sessions FAILED              [ 88%]
+tests/test_integration.py::test_full_signup_flow PASSED                  [ 94%]
+tests/test_integration.py::test_password_reset_flow PASSED              [100%]
+
+================================= FAILURES ====================================
+_________________________ test_create_user _________________________
+
+    def test_create_user():
+        payload = {
+            "email": "newuser@example.com",
+            "username": "newuser",
+            "password": "SecureP@ss123"
+        }
+>       response = client.post("/api/v1/users", json=payload)
+        tests/test_api.py:47
+
+E       ConnectionRefusedError: [Errno 111] Connection refused
+E       The test attempted to connect to localhost:5432 (PostgreSQL)
+E       but no database service was running.
+
+    tests/test_api.py:47: ConnectionRefusedError
+
+_________________________ test_refresh_token _________________________
+
+    def test_refresh_token():
+        # First get a valid token
+        login_resp = client.post("/api/v1/auth/login", json={
+            "email": "admin@example.com", "password": "admin"
+        })
+        token = login_resp.json()["refresh_token"]
+>       assert token is not None
+        tests/test_auth.py:83
+
+E       AssertionError: assert None is not None
+E       The login endpoint returned status 500 — likely a missing DB connection.
+
+    tests/test_auth.py:83: AssertionError
+
+_________________________ test_connection _________________________
+
+    def test_connection():
+>       conn = psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", "5432")),
+            dbname=os.getenv("DB_NAME", "testdb"),
+            user=os.getenv("DB_USER", "postgres"),
+            password=os.getenv("DB_PASSWORD", "")
+        )
+        tests/test_database.py:22
+
+E       psycopg2.OperationalError: could not connect to server: Connection refused
+E           Is the server running on host "localhost" (127.0.0.1) and accepting
+E           TCP/IP connections on port 5432?
+
+    tests/test_database.py:22: psycopg2.OperationalError
+
+_________________________ test_cleanup_expired_sessions _________________________
+
+    def test_cleanup_expired_sessions():
+>       result = cleanup_expired_sessions()
+        tests/test_workers.py:61
+
+E       KeyError: 'REDIS_URL'
+E       The worker requires the REDIS_URL environment variable to be set.
+E       Add it to your .env file or GitHub Actions secrets.
+
+    tests/test_workers.py:61: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_api.py::test_create_user - ConnectionRefusedError
+FAILED tests/test_auth.py::test_refresh_token - AssertionError
+FAILED tests/test_database.py::test_connection - psycopg2.OperationalError
+FAILED tests/test_workers.py::test_cleanup_expired_sessions - KeyError: 'REDIS_URL'
+=================== 4 failed, 14 passed in 12.43s ==============================
