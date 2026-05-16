@@ -1,0 +1,159 @@
+name: CI Pipeline
+
+# Triggers: every push to main/develop, every PR targeting main.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Lint & static analysis
+  # ──────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install ruff
+
+      - name: Run Ruff linter
+        run: ruff check src/ tests/ scripts/ --output-format=github
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Unit & integration tests
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        id: pytest
+        run: |
+          set +e
+          python -m pytest tests/ \
+            -v \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            2>&1 | tee test_output.log
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      # ── Upload coverage ────────────────────────────────────────────────────
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+      # ── Upload raw test log as artifact ───────────────────────────────────
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-py${{ matrix.python-version }}
+          path: test_output.log
+          retention-days: 7
+
+      # ── Analyze failures with the LLM Log Analyzer ───────────────────────
+      # Runs only when tests actually fail. Uses demo mode (no LLM needed).
+      # Set the OPENAI_API_KEY secret to get real AI analysis in the summary.
+      - name: Analyze test failures with LLM Log Analyzer
+        if: steps.pytest.outputs.exit_code != '0' && matrix.python-version == '3.11'
+        env:
+          LLM_PROVIDER: ${{ secrets.OPENAI_API_KEY != '' && 'openai' || 'demo' }}
+          LLM_MODEL: gpt-3.5-turbo
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CHROMA_DB_PATH: /tmp/chroma_db
+        run: |
+          echo "## 🔍 LLM Log Analyzer — Failure Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          python -m src.analyzer \
+            --log-file test_output.log \
+            --format markdown \
+            --provider "$LLM_PROVIDER" \
+            --db-path "$CHROMA_DB_PATH" \
+            >> "$GITHUB_STEP_SUMMARY" || true
+
+      # ── Fail the job if tests failed ──────────────────────────────────────
+      - name: Propagate test failure
+        if: steps.pytest.outputs.exit_code != '0'
+        run: exit 1
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. Demo — show the analyzer running on sample logs
+  # ──────────────────────────────────────────────────────────────────────────
+  demo:
+    name: Run Analyzer Demo
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Seed RAG knowledge base
+        run: python scripts/ingest_issues.py
+
+      - name: Analyze sample pytest failure log
+        run: |
+          echo "## 📋 Sample pytest Analysis" >> "$GITHUB_STEP_SUMMARY"
+          python -m src.analyzer \
+            --log-file logs/sample_pytest_failure.log \
+            --format markdown \
+            --provider demo \
+            >> "$GITHUB_STEP_SUMMARY"
+          # Exit 0 even if the analyzed log has failures
+          exit 0
+
+      - name: Analyze sample GitHub Actions log
+        run: |
+          echo "## 📋 Sample GitHub Actions Analysis" >> "$GITHUB_STEP_SUMMARY"
+          python -m src.analyzer \
+            --log-file logs/sample_actions_failure.log \
+            --format markdown \
+            --provider demo \
+            >> "$GITHUB_STEP_SUMMARY"
+          exit 0

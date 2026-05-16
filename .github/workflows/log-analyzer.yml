@@ -1,0 +1,116 @@
+name: Log Analyzer (Reusable)
+
+# Can be triggered:
+#   1. Manually via GitHub Actions UI (workflow_dispatch)
+#   2. Called from another workflow via workflow_call
+#   3. On a schedule (weekly re-analysis of recent failures)
+
+on:
+  workflow_dispatch:
+    inputs:
+      log_artifact:
+        description: "Name of the artifact containing the log file"
+        required: false
+        default: ""
+      log_content:
+        description: "Paste raw log content here (max ~8 KB)"
+        required: false
+        default: ""
+      llm_provider:
+        description: "LLM provider (demo | openai)"
+        required: false
+        default: "demo"
+
+  workflow_call:
+    inputs:
+      log_file:
+        description: "Path to the log file inside the repo or workspace"
+        type: string
+        required: false
+        default: ""
+      llm_provider:
+        description: "LLM provider"
+        type: string
+        required: false
+        default: "demo"
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+
+jobs:
+  analyze:
+    name: Analyze CI/CD Logs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Seed RAG knowledge base
+        run: python scripts/ingest_issues.py --db-path /tmp/chroma_db
+
+      # ── Build the log file to analyze ─────────────────────────────────────
+      - name: Prepare log file from pasted content (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch' && inputs.log_content != ''
+        run: |
+          mkdir -p /tmp/logs
+          printf '%s' "${{ inputs.log_content }}" > /tmp/logs/input.log
+          echo "LOG_FILE=/tmp/logs/input.log" >> "$GITHUB_ENV"
+
+      - name: Use provided log file path (workflow_call)
+        if: inputs.log_file != ''
+        run: echo "LOG_FILE=${{ inputs.log_file }}" >> "$GITHUB_ENV"
+
+      - name: Fall back to sample log
+        if: env.LOG_FILE == ''
+        run: echo "LOG_FILE=logs/sample_pytest_failure.log" >> "$GITHUB_ENV"
+
+      # ── Determine provider ─────────────────────────────────────────────────
+      - name: Set provider
+        run: |
+          PROVIDER="${{ inputs.llm_provider || 'demo' }}"
+          # Upgrade to openai if key is available
+          if [[ -n "${{ secrets.OPENAI_API_KEY }}" && "$PROVIDER" == "demo" ]]; then
+            PROVIDER="openai"
+          fi
+          echo "LLM_PROVIDER=$PROVIDER" >> "$GITHUB_ENV"
+
+      # ── Run analyzer ──────────────────────────────────────────────────────
+      - name: Run LLM Log Analyzer
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CHROMA_DB_PATH: /tmp/chroma_db
+        run: |
+          echo "# 🔍 LLM Log Analyzer Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Log file:** \`$LOG_FILE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Provider:** \`$LLM_PROVIDER\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          python -m src.analyzer \
+            --log-file "$LOG_FILE" \
+            --format markdown \
+            --provider "$LLM_PROVIDER" \
+            --db-path "$CHROMA_DB_PATH" \
+            >> "$GITHUB_STEP_SUMMARY" || true
+
+      # ── Print to console too ───────────────────────────────────────────────
+      - name: Print analysis to console
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CHROMA_DB_PATH: /tmp/chroma_db
+        run: |
+          python -m src.analyzer \
+            --log-file "$LOG_FILE" \
+            --format rich \
+            --provider "$LLM_PROVIDER" \
+            --db-path "$CHROMA_DB_PATH" || true
