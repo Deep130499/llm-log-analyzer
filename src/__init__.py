@@ -5,4 +5,4 @@ similar past issues from a vector database (ChromaDB).
 """
 
 __version__ = "1.0.0"
-__author__ = "Your Name"
+__author__ = "Sourodeep Mondal"
